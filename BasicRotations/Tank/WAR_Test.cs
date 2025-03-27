@@ -17,7 +17,7 @@ public sealed class WAR_Default : WarriorRotation
 
     [Range(1, 20, ConfigUnitType.Yalms)]
     [RotationConfig(CombatType.PvE, Name = "Max distance you can be from the boss for Primal Rend use (Danger, setting too high will get you killed)")]
-    public float PrimalRendDistance { get; set; } = 2;
+    public float PrimalRendDistance { get; set; } = 8;
 
     [Range(0, 1, ConfigUnitType.Percent)]
     [RotationConfig(CombatType.PvE, Name = "Nascent Flash Heal Threshold")]
@@ -44,13 +44,13 @@ public sealed class WAR_Default : WarriorRotation
     #region oGCD Logic
     protected override bool AttackAbility(IAction nextGCD, out IAction? act)
     {
-        if (InfuriatePvE.CanUse(out act, gcdCountForAbility: 3)) return true;
+        if (InfuriatePvE.CanUse(out act, gcdCountForAbility: 3) && (BeastGauge <= 50 || IsBurstStatus)) return true;
 
         if (!InnerReleasePvE.EnoughLevel && Player.HasStatus(true, StatusID.Berserk) && InfuriatePvE.CanUse(out act, usedUp: true)) return true;
 
         if (CombatElapsedLessGCD(1)) return false;
 
-        if (!Player.WillStatusEndGCD(2, 0, true, StatusID.SurgingTempest)
+        if (!Player.WillStatusEndGCD(24, 0, true, StatusID.SurgingTempest)
             || !StormsEyePvE.EnoughLevel)
         {
             if (BerserkPvE.CanUse(out act)) return true;
@@ -63,17 +63,17 @@ public sealed class WAR_Default : WarriorRotation
 
         if (CombatElapsedLessGCD(4)) return false;
 
-        if (OrogenyPvE.CanUse(out act)) return true;
-
         if (UpheavalPvE.CanUse(out act)) return true;
+
+        if (OrogenyPvE.CanUse(out act)) return true;
 
         if (Player.HasStatus(false, StatusID.Wrathful) && PrimalWrathPvE.CanUse(out act, skipAoeCheck: true)) return true;
 
         if (OnslaughtPvE.CanUse(out act, usedUp: IsBurstStatus) &&
-           !IsMoving &&
            !IsLastAction(true, OnslaughtPvE) &&
            !IsLastAction(true, UpheavalPvE) &&
-            Player.HasStatus(false, StatusID.SurgingTempest))
+            Player.HasStatus(false, StatusID.SurgingTempest) &&
+            Target.DistanceToPlayer() > 3)
         {
             return true;
         }
@@ -137,43 +137,43 @@ public sealed class WAR_Default : WarriorRotation
     #region GCD Logic
     protected override bool GeneralGCD(out IAction? act)
     {
-        if (!Player.WillStatusEndGCD(3, 0, true, StatusID.SurgingTempest))
+        if (!Player.WillStatusEndGCD(24, 0, true, StatusID.SurgingTempest))
         {
             if (ChaoticCyclonePvE.CanUse(out act)) return true;
             if (InnerChaosPvE.CanUse(out act)) return true;
         }
 
-        if (!Player.WillStatusEndGCD(3, 0, true, StatusID.SurgingTempest) && !Player.HasStatus(true, StatusID.NascentChaos) && InnerReleaseStacks > 0)
+        if (!Player.WillStatusEndGCD(24, 0, true, StatusID.SurgingTempest) && !Player.HasStatus(true, StatusID.NascentChaos) && InnerReleaseStacks > 0)
         {
             if (DecimatePvE.CanUse(out act, skipStatusProvideCheck: true)) return true;
             if (FellCleavePvE.CanUse(out act, skipStatusProvideCheck: true)) return true;
         }
 
-        if (!Player.WillStatusEndGCD(3, 0, true, StatusID.SurgingTempest) && InnerReleaseStacks == 0)
+        if (!Player.WillStatusEndGCD(24, 0, true, StatusID.SurgingTempest) && InnerReleaseStacks == 0)
         {
             if ((YEET || (!YEET && !IsMoving)) && PrimalRendPvE.CanUse(out act, skipAoeCheck: true))
             {
-                if (PrimalRendPvE.Target.Target?.DistanceToPlayer() < PrimalRendDistance) return true;
+                if (PrimalRendPvE.Target.Target?.DistanceToPlayer() > PrimalRendDistance) return true;
             }
             if (PrimalRuinationPvE.CanUse(out act)) return true;
         }
 
         // AOE
-        if (!Player.WillStatusEndGCD(3, 0, true, StatusID.SurgingTempest) && DecimatePvE.CanUse(out act, skipStatusProvideCheck: true)) return true;
-        if (!SteelCycloneMasteryTrait.IsEnabled && !Player.WillStatusEndGCD(3, 0, true, StatusID.SurgingTempest) && SteelCyclonePvE.CanUse(out act)) return true;
+        if (!Player.WillStatusEndGCD(24, 0, true, StatusID.SurgingTempest) && DecimatePvE.CanUse(out act, skipStatusProvideCheck: true)) return true;
+        if (!SteelCycloneMasteryTrait.IsEnabled && !Player.WillStatusEndGCD(24, 0, true, StatusID.SurgingTempest) && SteelCyclonePvE.CanUse(out act)) return true;
         if (MythrilTempestPvE.CanUse(out act)) return true;
         if (OverpowerPvE.CanUse(out act)) return true;
 
         // Single Target
-        if (!Player.WillStatusEndGCD(3, 0, true, StatusID.SurgingTempest) && FellCleavePvE.CanUse(out act, skipStatusProvideCheck: true)) return true;
-        if (!InnerBeastMasteryTrait.IsEnabled && (!StormsEyePvE.EnoughLevel || !Player.WillStatusEndGCD(3, 0, true, StatusID.SurgingTempest)) && InnerBeastPvE.CanUse(out act)) return true;
+        if (!Player.WillStatusEndGCD(24, 0, true, StatusID.SurgingTempest) && FellCleavePvE.CanUse(out act, skipStatusProvideCheck: true)) return true;
+        if (!InnerBeastMasteryTrait.IsEnabled && (!StormsEyePvE.EnoughLevel || !Player.WillStatusEndGCD(24, 0, true, StatusID.SurgingTempest)) && InnerBeastPvE.CanUse(out act)) return true;
         if (StormsEyePvE.CanUse(out act)) return true;
         if (StormsPathPvE.CanUse(out act)) return true;
         if (MaimPvE.CanUse(out act)) return true;
         if (HeavySwingPvE.CanUse(out act)) return true;
 
         // Ranged
-        if (TomahawkPvE.CanUse(out act)) return true;
+        if (TomahawkPvE.CanUse(out act) && Target.DistanceToPlayer() > 3) return true;
 
         return base.GeneralGCD(out act);
     }
@@ -181,11 +181,9 @@ public sealed class WAR_Default : WarriorRotation
     [RotationDesc(ActionID.NascentFlashPvE)]
     protected override bool HealSingleGCD(out IAction? act)
     {
-        if (!NeverscentFlash && NascentFlashPvE.CanUse(out act)
-            && (InCombat && NascentFlashPvE.Target.Target?.GetHealthRatio() < FlashHeal)) return true;
-
-        if (NeverscentFlash && NascentFlashPvE.CanUse(out act)
-            && (InCombat && !Player.HasStatus(true, StatusID.Defiance) && NascentFlashPvE.Target.Target?.GetHealthRatio() < FlashHeal)) return true;
+        if (NascentFlashPvE.CanUse(out act) &&
+            (InCombat && NascentFlashPvE.Target.Target?.GetHealthRatio() < FlashHeal) &&
+            (!NeverscentFlash || !Player.HasStatus(true, StatusID.Defiance))) return true;
 
         return base.HealSingleGCD(out act);
     }
